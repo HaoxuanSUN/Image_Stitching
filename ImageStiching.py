@@ -37,7 +37,7 @@ def load_images_from_folder(folder):
     return images
 
 # load images
-images_path = 'CV-image/test/2'
+images_path = 'CV-image/test/5'
 images = load_images_from_folder(images_path)
 
 # Stitch images into panoramas

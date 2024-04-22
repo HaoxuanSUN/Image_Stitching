@@ -15,18 +15,22 @@ class Stitcher:
                 result2 = self.stitch_two_images([self.resize(images[i+1]), self.resize(images[i])], showMatches=showMatches)
                 if result1[0].sum() > result2[0].sum():
                     result = result1
+                    print(f"result1：{result1[0].sum()} > result2：{result2[0].sum()}")
                 else:
                     result = result2
+                    print(f"result2：{result2[0].sum()} > result1：{result1[0].sum()}")
             if i > 0:
                 result1 = self.stitch_two_images([self.resize(result[0]), self.resize(images[i+1])], showMatches=showMatches)
                 result2 = self.stitch_two_images([self.resize(images[i+1]), self.resize(result[0])], showMatches=showMatches)
                 if result1[0].sum() > result2[0].sum():
                     result = result1
+                    print(f"result1：{result1[0].sum()} > result2：{result2[0].sum()}")
                 else:
                     result = result2
+                    print(f"result2：{result2[0].sum()} > result1：{result1[0].sum()}")
         return result
 
-    def resize(self, image, image_h=500, ratio=3):
+    def resize(self, image, image_h=1000, ratio=2):
         """
         :param image:
         :param image_h: Zoom the picture to the same height, image_h cannot be too large, otherwise the calculation time will be too long
@@ -57,7 +61,7 @@ class Stitcher:
         x, y, w, h = cv2.boundingRect(contours[0])
         return img[y:y+h, x:x+w]
 
-    def stitch_two_images(self, images, ratio=0.75, ransacReprojThreshold=4.0, showMatches=False):
+    def stitch_two_images(self, images, ratio=0.1, ransacReprojThreshold=4.0, showMatches=False):
         """
         Feature point matching and picture stitching for 2 images
         :param images:
@@ -67,7 +71,7 @@ class Stitcher:
         :return:
         """
         # Obtain the input pictures, imageB is on the left, imageA is on the right by default
-        (imageB, imageA) = images
+        imageA, imageB = images
 
         # Detect SIFT key feature points of A and B pictures, and calculate feature descriptors
         (kpsA, featuresA) = self.detectAndDescribe(imageA)
@@ -97,16 +101,16 @@ class Stitcher:
 
         img2gray = cv2.cvtColor(imageB_Transfoorm, cv2.COLOR_BGR2GRAY)
         ret, mask = cv2.threshold(img2gray, 0, 255, cv2.THRESH_BINARY)
-        cv2.imshow("mask", mask)
+        #cv2.imshow("mask", mask)
         mask_inv = cv2.bitwise_not(mask)
 
-        cv2.imshow("mask_inv", mask_inv)
+        #cv2.imshow("mask_inv", mask_inv)
 
         img1_bg = cv2.bitwise_and(ImageA_Transform, ImageA_Transform, mask=mask_inv)
-        cv2.imshow("img1_bg", img1_bg)
+        #cv2.imshow("img1_bg", img1_bg)
 
         img2_fg = cv2.bitwise_and(imageB_Transfoorm, imageB_Transfoorm, mask=mask)
-        cv2.imshow("img2_fg", img2_fg)
+        #cv2.imshow("img2_fg", img2_fg)
 
         dst = cv2.add(img1_bg, img2_fg)
         ImageA_Transform[0:rows, 0:cols] = dst
@@ -162,18 +166,18 @@ class Stitcher:
 
     def drawMatches(self, imageA, imageB, kpsA, kpsB, matches, status):
         # Initialize the visualization picture and connect the A and B pictures together
-        (heightA, weightA) = imageA.shape[:2]
-        (heightB, weightB) = imageB.shape[:2]
-        vis = np.zeros((max(heightA, heightB), weightA + weightB, 3), dtype="uint8")
-        vis[0:heightA, 0:weightA] = imageA
-        vis[0:heightB, weightA:] = imageB
+        (heightA, widthA) = imageA.shape[:2]
+        (heightB, widthB) = imageB.shape[:2]
+        vis = np.zeros((max(heightA, heightB), widthA + widthB, 3), dtype="uint8")
+        vis[0:heightA, 0:widthA] = imageA
+        vis[0:heightB, widthA:] = imageB
         # Traversal to draw all matching pairs
         for ((trainIdx, queryIdx), n) in zip(matches, status):
             # When the point pair matching is successful, draw on the visualization
             if n == 1:
                 # Draw matching pairs
                 ptA = (int(kpsA[queryIdx][0]), int(kpsA[queryIdx][1]))
-                ptB = (int(kpsB[trainIdx][0]) + weightA, int(kpsB[trainIdx][1]))
+                ptB = (int(kpsB[trainIdx][0]) + widthA, int(kpsB[trainIdx][1]))
                 cv2.line(vis, ptA, ptB, (0, 255, 0), 1)
         # Return visualization results
         return vis
