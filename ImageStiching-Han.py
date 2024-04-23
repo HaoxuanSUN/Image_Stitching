@@ -1,13 +1,13 @@
 from Stitcher import Stitcher
 import cv2
 # Read image resources
-imageA = cv2.imread(r"CV-image/test/1/5.jpg")
+imageA = cv2.imread(r"CV-image/test/6/img1.jpg")
 if imageA is None:
     print(f"Failed to load image")
 else:
     print(f"Successfully loaded image")
-imageB = cv2.imread(r"CV-image/test/1/4.jpg")
-imageC = cv2.imread(r"CV-image/test/1/6.jpg")
+imageB = cv2.imread(r"CV-image/test/6/img2.jpg")
+#imageC = cv2.imread(r"CV-image/test/6/6.jpg")
 # imageD = cv2.imread(r"CV-image/ImageSet5/S5-4.jpg")
 
 # ImageSet1
@@ -15,7 +15,7 @@ imageC = cv2.imread(r"CV-image/test/1/6.jpg")
 # ImageSet2
 # images = [imageA, imageC, imageB]
 # ImageSet3
-images = [imageA, imageB, imageC]
+images = [imageA, imageB]
 # ImageSet4
 # images = [imageA, imageC, imageB, imageD]
 # ImageSet5

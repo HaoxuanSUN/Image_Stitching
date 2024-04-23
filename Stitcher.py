@@ -158,8 +158,9 @@ class Stitcher:
         # Blending the warped image with the second image using alpha blending
        
 
-        result = self.get_max_rectangle(ImageA_Transform)
-        cv2.imshow('res', result)
+        #result = self.get_max_rectangle(ImageA_Transform)
+        result = dst
+        cv2.imshow('res', dst)
 
         # Check whether it is necessary to display key points matching outcome
         vis = None
@@ -252,12 +253,12 @@ def adjust_brightness_contrast(image, brightness=0, contrast=0):
 
     return image
 
-def is_close_to_black(pixel, threshold= 30):
+def is_close_to_black(pixel, threshold= 35):
     black = np.array([0,0,0])  # Black pixel
     distance = np.linalg.norm(pixel - black)  # Euclidean distance
     return distance < threshold
 
-def normal_resize(image, scale_percent = 20):
+def normal_resize(image, scale_percent = 50):
 
     # Calculate the new width and height based on the scaling factor
     new_width = int(image.shape[1] * scale_percent / 100)
@@ -273,6 +274,9 @@ def gradient_blend(pixel_l, pixel_r, centroid, x, y, max_distance):
     center_y = centroid[1]
     distance = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
     alpha = 1 - (distance / max_distance) * 1.1
+    # if 2 color is closed enough, pick left pixel
+    if(np.abs(np.linalg.norm(pixel_l - pixel_r)) < 15):
+        return pixel_r
     # if(distance < 10):
     #     return np.array([255,0,0])
     if(alpha < 0):
