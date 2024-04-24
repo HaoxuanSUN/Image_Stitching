@@ -3,15 +3,18 @@ import cv2
 from sympy import centroid
 from tqdm import tqdm
 import json
+import math
 
 class Stitcher:
 
     # stitch function
-    def stitchs_batch_images(self, images, showMatches=False):
+    def stitchs_batch_images(self, images, gradient_intensity, gradient_start, showMatches=False):
         """
         :param images:list[image...]
         :return:result:outcome(stitched image)
         """
+        self.gradient_intensity = gradient_intensity
+        self.gradient_start = gradient_start 
         # for i in range(len(images)):
         # # Adjust brightness and contrast of image2 to match image1
         #     images[i] = adjust_brightness_contrast(images[i], brightness=30, contrast=20)
@@ -122,15 +125,25 @@ class Stitcher:
         cv2.imwrite("warp2.jpg", imageB_Transfoorm)
 
         centroid = calculate_centroid(cv2.add(img1_bg, img2_fg))
-        print(centroid)
+        
+        # calculate warp corners
+        height_l, width_l, channel_l = imageA.shape
+        corners = [[0, 0, 1], [width_l, 0, 1], [width_l, height_l, 1], [0, height_l, 1]]
+        corners_new = [np.dot(H, corner) for corner in corners]
+        corners_new = np.array(corners_new).T 
+        x_news = corners_new[0] / corners_new[2]
+        y_news = corners_new[1] / corners_new[2]
+        new_corner_list = list(zip(y_news, x_news))
         
         # Stitching procedure, store results in warped_l.
         warped_l = ImageA_Transform
         warped_r = imageB_Transfoorm
         centroid = calculate_centroid(cv2.add(img1_bg, img2_fg))
-        gradient_center = (imageB.shape[0] + (imageB.shape[0] - centroid[0]), imageB.shape[1] + (imageB.shape[1] - centroid[1]))
+        project_point = (int(imageB.shape[0] + (imageB.shape[0] - centroid[0])), int(imageB.shape[1] + (imageB.shape[1] - centroid[1])))
+        gradient_center = closest_point_to_shape(project_point, new_corner_list)
+        print(new_corner_list)
         print(gradient_center)
-        max_distance =  np.sqrt((gradient_center[0] - centroid[0]) ** 2 + (gradient_center[1] - gradient_center[1]) ** 2)*2
+        max_distance =  100*self.gradient_intensity
 
         for i in tqdm(range(warped_r.shape[0])):
             for j in range(warped_r.shape[1]):
@@ -147,7 +160,7 @@ class Stitcher:
                     if is_close_to_black(pixel_r) :
                         warped_l[i, j, :] = pixel_l
                     else:
-                        warped_l[i, j, :]  = gradient_blend(pixel_l, pixel_r, gradient_center, i, j, max_distance)
+                        warped_l[i, j, :]  = self.gradient_blend(pixel_l, pixel_r, gradient_center, i, j, max_distance)
                         #warped_l[i, j, :] = 0.5*pixel_l + 0.5*pixel_r
 
         dst = warped_l
@@ -225,6 +238,23 @@ class Stitcher:
                 cv2.line(vis, ptA, ptB, (0, 255, 0), 1)
         # Return visualization results
         return vis
+    
+    def gradient_blend(self, pixel_l, pixel_r, centroid, x, y, max_distance):
+        max_alpha = 0.9
+        center_x = centroid[0]
+        center_y = centroid[1]
+        distance = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+        alpha = self.gradient_start - (distance / max_distance) * 1
+        # if 2 color is closed enough, pick left pixel
+        # if(np.abs(np.linalg.norm(pixel_l - pixel_r)) < 15):
+        #     return pixel_r
+        # if(distance < 10):
+        #     return np.array([255,0,0])
+        if(alpha < 0):
+            alpha = 0
+        elif(alpha > 1):
+            alpha = 1
+        return pixel_r*alpha + pixel_l*(1 - alpha)
 
 
 def adjust_brightness_contrast(image, brightness=0, contrast=0):
@@ -268,21 +298,6 @@ def normal_resize(image, scale_percent = 20):
     resized_image = cv2.resize(image, (new_width, new_height))
     return resized_image
 
-def gradient_blend(pixel_l, pixel_r, centroid, x, y, max_distance):
-    max_alpha = 0.9
-    center_x = centroid[0]
-    center_y = centroid[1]
-    distance = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
-    alpha = 1 - (distance / max_distance) * 1
-    # if 2 color is closed enough, pick left pixel
-    # if(np.abs(np.linalg.norm(pixel_l - pixel_r)) < 15):
-    #     return pixel_r
-    # if(distance < 10):
-    #     return np.array([255,0,0])
-    if(alpha < 0):
-        alpha = 0
-    return pixel_r*alpha + pixel_l*(1 - alpha)
-
 
 def calculate_centroid(image):
     # Convert the image to grayscale
@@ -309,3 +324,51 @@ def calculate_centroid(image):
             centroid_y = int(M['m01'] / M['m00'])
 
     return centroid_y, centroid_x
+
+import math
+
+def find_distance(point1, point2):
+    """Calculate the distance between two points."""
+    return math.sqrt((point2[0] - point1[0])**2 + (point2[1] - point1[1])**2)
+
+def closest_point_to_shape(point, shape):
+    """Find the closest point from a given point to a 4-corner shape."""
+    min_distance = float('inf')
+    closest_point = None
+
+    # Check if the point is inside the shape
+    if point_inside_shape(point, shape):
+        return point
+
+    # Find closest point on each line segment forming the shape
+    for i in range(len(shape)):
+        p1 = shape[i]
+        p2 = shape[(i + 1) % len(shape)]
+        closest = closest_point_on_line(point, p1, p2)
+        dist = find_distance(point, closest)
+        if dist < min_distance:
+            min_distance = dist
+            closest_point = closest
+
+    return closest_point
+
+def point_inside_shape(point, shape):
+    """Check if a point is inside a 4-corner shape using ray casting algorithm."""
+    crossings = 0
+    for i in range(len(shape)):
+        p1 = shape[i]
+        p2 = shape[(i + 1) % len(shape)]
+        if (p1[1] > point[1]) != (p2[1] > point[1]) and \
+           point[0] < (p2[0] - p1[0]) * (point[1] - p1[1]) / (p2[1] - p1[1]) + p1[0]:
+            crossings += 1
+    return crossings % 2 != 0
+
+def closest_point_on_line(point, line_start, line_end):
+    """Find the closest point on a line segment to a given point."""
+    dx = line_end[0] - line_start[0]
+    dy = line_end[1] - line_start[1]
+    t = ((point[0] - line_start[0]) * dx + (point[1] - line_start[1]) * dy) / (dx**2 + dy**2)
+    t = max(0, min(1, t))  # Clamp t to [0, 1] to ensure closest point is within the line segment
+    closest_x = line_start[0] + t * dx
+    closest_y = line_start[1] + t * dy
+    return (int(closest_x), int(closest_y))
