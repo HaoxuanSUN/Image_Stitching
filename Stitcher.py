@@ -25,12 +25,12 @@ class Stitcher:
                 # else:
                 #     result = result2
             if i > 0:
-                result1 = self.stitch_two_images([result[0],  normal_resize(images[i+1])], showMatches=showMatches)
-                result2 = self.stitch_two_images([ normal_resize(images[i+1]), result[0]], showMatches=showMatches)
-                if result1[0].sum() > result2[0].sum():
-                    result = result1
-                else:
-                    result = result2
+                #result = self.stitch_two_images([result[0],  normal_resize(images[i+1])], showMatches=showMatches)
+                result = self.stitch_two_images([ normal_resize(images[i+1]), result[0]], showMatches=showMatches)
+                # if result1[0].sum() > result2[0].sum():
+                #     result = result1
+                # else:
+                #     result = result2
 
         
         return result
@@ -258,7 +258,7 @@ def is_close_to_black(pixel, threshold= 35):
     distance = np.linalg.norm(pixel - black)  # Euclidean distance
     return distance < threshold
 
-def normal_resize(image, scale_percent = 50):
+def normal_resize(image, scale_percent = 20):
 
     # Calculate the new width and height based on the scaling factor
     new_width = int(image.shape[1] * scale_percent / 100)
@@ -273,10 +273,10 @@ def gradient_blend(pixel_l, pixel_r, centroid, x, y, max_distance):
     center_x = centroid[0]
     center_y = centroid[1]
     distance = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
-    alpha = 1 - (distance / max_distance) * 1.1
+    alpha = 1 - (distance / max_distance) * 1
     # if 2 color is closed enough, pick left pixel
-    if(np.abs(np.linalg.norm(pixel_l - pixel_r)) < 15):
-        return pixel_r
+    # if(np.abs(np.linalg.norm(pixel_l - pixel_r)) < 15):
+    #     return pixel_r
     # if(distance < 10):
     #     return np.array([255,0,0])
     if(alpha < 0):
