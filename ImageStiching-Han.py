@@ -28,7 +28,7 @@ print("Start Stitching ...")
 
 # display key points matching outcome
 show_matches = False
-result = stitch.stitchs_batch_images(images, 3, 1.5, showMatches=show_matches)
+result = stitch.stitchs_batch_images(images, 2, 1.5, showMatches=show_matches)
 
 # Display all pictures
 # cv2.namedWindow("Result2_ACB",0)
